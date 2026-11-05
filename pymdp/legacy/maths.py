@@ -33,23 +33,22 @@ def spm_dot(X, x, dims_to_omit=None):
     """
 
     # Construct dims to perform dot product on
-    if utils.is_obj_array(x):
-        # dims = list((np.arange(0, len(x)) + X.ndim - len(x)).astype(int))
-        dims = list(range(X.ndim - len(x),len(x)+X.ndim - len(x)))
-        # dims = list(range(X.ndim))
+    if (x.dtype.kind == "O" if type(x) is np.ndarray else x.dtype == "object"):
+        first_dim = X.ndim - len(x)
     else:
-        dims = [1]
-        x = utils.to_obj_array(x)
+        first_dim = 1
+        x = (x.squeeze(),) if type(x) is np.ndarray else utils.to_obj_array(x)
 
-    if dims_to_omit is not None:
-        arg_list = [X, list(range(X.ndim))] + list(chain(*([x[xdim_i],[dims[xdim_i]]] for xdim_i in range(len(x)) if xdim_i not in dims_to_omit))) + [dims_to_omit]
-    else:
-        arg_list = [X, list(range(X.ndim))] + list(chain(*([x[xdim_i],[dims[xdim_i]]] for xdim_i in range(len(x))))) + [[0]]
+    arg_list = [X, tuple(range(X.ndim))]
+    for xdim_i in range(len(x)):
+        if dims_to_omit is None or xdim_i not in dims_to_omit:
+            arg_list += (x[xdim_i], (first_dim + xdim_i,))
+    arg_list.append((0,) if dims_to_omit is None else dims_to_omit)
 
     Y = np.einsum(*arg_list)
 
     # check to see if `Y` is a scalar
-    if np.prod(Y.shape) <= 1.0:
+    if Y.size <= 1:
         Y = Y.item()
         Y = np.array([Y]).astype("float64")
 
